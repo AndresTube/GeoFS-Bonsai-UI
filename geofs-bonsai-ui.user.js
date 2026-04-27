@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GeoFS Bonsai UI
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
-// @description  MSFS-style HUD for GeoFS: Monochromatic style, Compass minimap (TL), AIRSPEED+FLAPS+THROTTLE+SPOILERS (BL), ALT (BR).
+// @version      1.1.0
+// @description  Bonsai UI: Monochromatic MSFS-style HUD for GeoFS
 // @author       Fendrixx
 // @match        https://www.geo-fs.com/geofs.php*
 // @match        https://*.geo-fs.com/geofs.php*
@@ -13,14 +13,13 @@
 (function () {
     'use strict';
 
-    const BOTTOM_OFFSET = 10;
-
     const css = `
     #msfs-ui-root {
         position: fixed; inset: 0;
         pointer-events: none; z-index: 999999;
         font-family: 'Consolas','Menlo',monospace; color: #fff;
         text-shadow: 0 0 2px #000;
+        --bonsai-bottom: 10px;
     }
     #msfs-ui-root .panel {
         position: absolute;
@@ -32,20 +31,27 @@
     #msfs-ui-root .label { font-size: 10px; color: #ccc; letter-spacing: 1px; }
 
     #msfs-hdg {
-        top: 36px; left: 12px;
-        width: 170px; height: 170px;
-        border-radius: 50%;
-        background: rgba(0,0,0,0.45);
+        top: 8px; left: 50%; transform: translateX(-50%);
+        width: 420px; height: 36px;
+        background: rgba(0,0,0,0.55);
     }
     #msfs-hdg .hdg-readout {
-        position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+        position: absolute; top: 100%; left: 50%; transform: translate(-50%, 2px);
         background: #000; padding: 2px 10px; border: 1px solid #fff;
-        font-weight: bold; font-size: 14px; z-index: 2; white-space: nowrap;
+        font-weight: bold; font-size: 13px; z-index: 2; white-space: nowrap;
     }
-    #msfs-hdg canvas { display:block; width:100%; height:100%; }
+    #msfs-hdg canvas { display: block; width: 100%; height: 100%; }
+    #msfs-hdg .hdg-cursor {
+        position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+        width: 0; height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #fff;
+        z-index: 2;
+    }
 
     #msfs-spd {
-        left: 12px; bottom: ${BOTTOM_OFFSET}px;
+        left: 12px; bottom: var(--bonsai-bottom);
         width: 70px; height: 220px;
     }
     #msfs-spd .top-label, #msfs-spd .bot-label,
@@ -86,7 +92,7 @@
     }
 
     #msfs-thr {
-        left: 12px; bottom: ${BOTTOM_OFFSET + 240}px;
+        left: 12px; bottom: calc(var(--bonsai-bottom) + 240px);
         width: 56px; height: 140px;
     }
     #msfs-thr .top-label, #msfs-thr .val {
@@ -104,7 +110,7 @@
     }
 
     #msfs-flaps {
-        left: 90px; bottom: ${BOTTOM_OFFSET}px;
+        left: 90px; bottom: var(--bonsai-bottom);
         width: 56px; height: 100px;
     }
     #msfs-flaps .top-label, #msfs-flaps .val,
@@ -123,14 +129,83 @@
     }
 
     #msfs-spl {
-        left: 154px; bottom: ${BOTTOM_OFFSET}px;
+        left: 154px; bottom: var(--bonsai-bottom);
         width: 56px; height: 100px;
     }
 
     #msfs-alt {
-        right: 12px; bottom: ${BOTTOM_OFFSET}px;
+        right: 12px; bottom: var(--bonsai-bottom);
         width: 80px; height: 220px;
     }
+
+    #msfs-gear, #msfs-brk, #msfs-wind {
+        right: 100px;
+        width: 56px; height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 2px;
+    }
+    #msfs-gear { bottom: var(--bonsai-bottom); }
+    #msfs-brk  { bottom: calc(var(--bonsai-bottom) + 52px); }
+    #msfs-wind { bottom: calc(var(--bonsai-bottom) + 104px); }
+    #msfs-gear .lbl, #msfs-brk .lbl, #msfs-wind .lbl {
+        font-size: 9px;
+        letter-spacing: 1.5px;
+        color: #aaa;
+        text-transform: uppercase;
+    }
+    #msfs-gear .val, #msfs-brk .val, #msfs-wind .val {
+        font-size: 12px;
+        font-weight: bold;
+        letter-spacing: 1.5px;
+        color: #ddd;
+        padding: 1px 6px;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 2px;
+        background: rgba(0,0,0,0.4);
+    }
+    #msfs-gear .val.on  { color: #fff; background: rgba(40,150,40,0.35); border-color: #6c6; }
+    #msfs-gear .val.off { color: #fff; background: rgba(150,40,40,0.35); border-color: #c66; }
+    #msfs-brk  .val.on  { color: #fff; background: rgba(180,140,0,0.4);  border-color: #db3; }
+    #msfs-brk  .val.off { color: #aaa; }
+
+    #msfs-eng {
+        left: 90px;
+        bottom: calc(var(--bonsai-bottom) + 110px);
+        width: 56px; height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 2px;
+    }
+    #msfs-eng .lbl {
+        font-size: 9px;
+        letter-spacing: 1.5px;
+        color: #aaa;
+        text-transform: uppercase;
+    }
+    #msfs-eng .val {
+        font-size: 12px;
+        font-weight: bold;
+        letter-spacing: 1.5px;
+        color: #ddd;
+        padding: 1px 6px;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 2px;
+        background: rgba(0,0,0,0.4);
+    }
+    #msfs-eng .val.on  { color: #fff; background: rgba(40,150,40,0.35); border-color: #6c6; }
+    #msfs-eng .val.off { color: #fff; background: rgba(150,40,40,0.35); border-color: #c66; }
+
+    #msfs-thr.reverse .bar { border-color: #db3 !important; }
+    #msfs-thr.reverse .fill {
+        background: linear-gradient(#ffd24a, #b58a00) !important;
+    }
+    #msfs-thr.reverse .top-label,
+    #msfs-thr.reverse .val { color: #ffd24a !important; }
 
     .geofs-ui-bottom {
         background: rgba(0,0,0,0.55) !important;
@@ -238,6 +313,57 @@
     .geofs-ui-bottom .geofs-button-fullscreen {
         float: none !important;
     }
+    .geofs-recordPlayer-slider {
+        position: fixed !important;
+        width: 380px !important;
+        min-width: 380px !important;
+        height: 14px !important;
+        background: rgba(0,0,0,0.6) !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+        border-radius: 7px !important;
+        bottom: 54px !important;
+        left: 50% !important;
+        right: auto !important;
+        top: auto !important;
+        transform: translateX(-50%) !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        z-index: 2147483647 !important;
+        display: block !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+    }
+    .geofs-recordPlayer-slider .slider-rail {
+        width: 100% !important;
+        height: 100% !important;
+        background: transparent !important;
+    }
+    .geofs-recordPlayer-slider .slider-selection {
+        height: 100% !important;
+        background: rgba(255,255,255,0.3) !important;
+        border-radius: 7px !important;
+    }
+    .geofs-recordPlayer-slider .slider-grippy {
+        width: 14px !important;
+        height: 22px !important;
+        margin-top: -4px !important;
+        background: #fff !important;
+        border-radius: 3px !important;
+        box-shadow: 0 0 4px rgba(0,0,0,0.8) !important;
+        position: absolute !important;
+        right: -7px !important;
+        cursor: pointer !important;
+        top: 0 !important;
+    }
+    .geofs-recordPlayer-slider .slider-input {
+        opacity: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        cursor: pointer !important;
+        position: absolute !important;
+        inset: 0 !important;
+    }
 
     .control-pad {
         background: rgba(20,20,20,0.85) !important;
@@ -277,17 +403,21 @@
     .geofs-radio-pad,
     .geofs-autopilot-pad {
         position: fixed !important;
-        top: 8px !important;
+        top: 50px !important;
         z-index: 1000000 !important;
-        width: 150px !important;
+        width: 110px !important;
         height: 32px !important;
         margin: 0 !important;
         padding: 0 !important;
         right: auto !important;
         bottom: auto !important;
     }
-    .geofs-radio-pad { left: calc(50% - 160px) !important; }
-    .geofs-autopilot-pad { left: calc(50% + 10px) !important; }
+    .geofs-radio-pad     { left: 16px !important; }
+    .geofs-autopilot-pad { left: 132px !important; }
+
+    .geofs-flightPlan {
+        top: 40px !important;
+    }
 
     .geofs-radio-pad > .control-pad-label,
     .geofs-autopilot-pad > .control-pad-label {
@@ -314,9 +444,10 @@
     .geofs-radio,
     .geofs-radio-list {
         position: fixed !important;
-        top: 50px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
+        top: 90px !important;
+        left: 16px !important;
+        right: auto !important;
+        transform: none !important;
         z-index: 1000001 !important;
         background: rgba(0,0,0,0.78) !important;
         border: 1px solid rgba(255,255,255,0.22) !important;
@@ -544,17 +675,33 @@
     .spoiler-overlay,
     .brakes-overlay,
     .gear-overlay,
-    .flaps-overlay {
+    .flaps-overlay,
+    .geofs-screenshot {
         display: none !important;
     }
 
+    .geofs-chat,
+    .geofs-chat-container,
     .geofs-chat-messages,
     .geofs-chat-message-list,
     #geofs-chat-messages {
-        padding-left: 100px !important;
+        position: fixed !important;
+        left: 16px !important;
+        top: 60px !important;
+        bottom: auto !important;
+        width: 226px !important;
+        max-width: 226px !important;
+        height: 50px !important;
+        max-height: 50px !important;
+        overflow: hidden !important;
+        padding-left: 0 !important;
+        box-sizing: border-box !important;
     }
     .geofs-chat-message {
-        margin-left: 100px !important;
+        margin-left: 0 !important;
+        max-width: 226px !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
     }
 
     .geofs-list,
@@ -574,6 +721,167 @@
         pointer-events: none;
     }
     #msfs-ui-root { transition: opacity 0.2s ease; }
+
+    #bonsai-landing-popup {
+        position: fixed;
+        bottom: 56px;
+        left: 50%;
+        transform: translate(-50%, 12px);
+        z-index: 2147483647;
+        padding: 6px 12px;
+        background: rgba(0,0,0,0.78);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 6px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        color: #fff;
+        font-family: 'Consolas','Menlo',monospace;
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2,0.8,0.2,1);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        white-space: nowrap;
+    }
+    #bonsai-landing-popup.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+    #bonsai-landing-popup .bl-fpm {
+        font-size: 18px;
+        font-weight: bold;
+        letter-spacing: 1.5px;
+        line-height: 1;
+    }
+    #bonsai-landing-popup .bl-fpm-unit {
+        font-size: 10px;
+        color: #bbb;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+    }
+    #bonsai-landing-popup .bl-grade {
+        display: inline-block;
+        padding: 3px 10px;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        border-radius: 3px;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    #bonsai-landing-popup .bl-grade.butter     { background: #1e6b1e; color: #fff; }
+    #bonsai-landing-popup .bl-grade.great      { background: #2c8a2c; color: #fff; }
+    #bonsai-landing-popup .bl-grade.acceptable { background: #b58a00; color: #000; }
+    #bonsai-landing-popup .bl-grade.hard       { background: #a83232; color: #fff; }
+    #bonsai-landing-popup .bl-grade.crash      { background: #5c0000; color: #fff; }
+    #bonsai-landing-popup .bl-title {
+        font-size: 9px;
+        color: #aaa;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+    }
+
+    body.msfs-hidden #msfs-ui-root,
+    body.msfs-hidden #bonsai-landing-popup { display: none !important; }
+
+    body .geofs-alarms-container,
+    body .geofs-control-status,
+    body .geofs-crashOverlay,
+    body .geofs-message,
+    body .geofs-warning {
+        position: fixed !important;
+        left: 50% !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: 60px !important;
+        transform: translateX(-50%) !important;
+        z-index: 2147483640 !important;
+        margin: 0 !important;
+        width: auto !important;
+        height: auto !important;
+        float: none !important;
+        pointer-events: none;
+    }
+    body .geofs-control-status { bottom: 100px !important; pointer-events: auto; }
+    body .geofs-alarms-container .geofs-textOverlay {
+        position: relative !important;
+        margin: 0 4px !important;
+        transform: none !important;
+        transform-origin: 0 0 !important;
+    }
+
+    #bonsai-settings-btn {
+        position: fixed;
+        top: 50px;
+        right: 8px;
+        z-index: 2147483646;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        background: rgba(0,0,0,0.55);
+        border: 1px solid rgba(255,255,255,0.25);
+        color: #fff;
+        font-family: 'Consolas','Menlo',monospace;
+        font-size: 16px;
+        cursor: pointer;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        pointer-events: auto;
+    }
+    #bonsai-settings-btn:hover { background: rgba(0,0,0,0.75); }
+    body.msfs-hidden #bonsai-settings-btn { display: none !important; }
+
+    #bonsai-settings {
+        position: fixed;
+        top: 90px;
+        right: 8px;
+        z-index: 2147483646;
+        width: 320px;
+        max-height: 80vh;
+        overflow-y: auto;
+        background: rgba(0,0,0,0.82);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 6px;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        color: #fff;
+        font-family: 'Consolas','Menlo',monospace;
+        font-size: 12px;
+        padding: 14px 16px;
+        display: none;
+        pointer-events: auto;
+    }
+    #bonsai-settings.show { display: block; }
+    #bonsai-settings h3 {
+        font-size: 12px; letter-spacing: 3px; margin: 0 0 10px; color: #ccc;
+        border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 6px;
+    }
+    #bonsai-settings h4 {
+        font-size: 10px; letter-spacing: 2px; margin: 12px 0 6px; color: #888;
+    }
+    #bonsai-settings .row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 4px 0;
+    }
+    #bonsai-settings .row label { flex: 1; cursor: pointer; }
+    #bonsai-settings input[type="checkbox"] { accent-color: #fff; cursor: pointer; }
+    #bonsai-settings input[type="range"] { width: 130px; }
+    #bonsai-settings input[type="text"] {
+        width: 60px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.25);
+        color: #fff; padding: 2px 6px; font-family: inherit; text-align: center;
+        text-transform: uppercase;
+    }
+    #bonsai-settings .hint { color: #888; font-size: 10px; margin-top: 4px; }
+    #bonsai-settings button.reset {
+        margin-top: 10px; width: 100%; padding: 6px;
+        background: rgba(255,255,255,0.08); color: #fff;
+        border: 1px solid rgba(255,255,255,0.2); cursor: pointer;
+        font-family: inherit; letter-spacing: 2px; font-size: 11px;
+    }
+    #bonsai-settings button.reset:hover { background: rgba(255,255,255,0.18); }
     `;
 
     function buildSpeedTicks() {
@@ -585,6 +893,220 @@
         let html = '';
         for (let v = 50000; v >= 0; v -= 200) html += `<div class="tick">${v}</div>`;
         return html;
+    }
+
+    const SETTINGS_KEY = 'bonsaiUISettings_v1';
+    const PANELS = [
+        { id: 'msfs-hdg', label: 'Heading compass' },
+        { id: 'msfs-spd', label: 'Airspeed tape' },
+        { id: 'msfs-alt', label: 'Altitude tape' },
+        { id: 'msfs-thr', label: 'Throttle gauge' },
+        { id: 'msfs-flaps', label: 'Flaps gauge' },
+        { id: 'msfs-spl', label: 'Spoilers gauge' },
+        { id: 'msfs-gear', label: 'Gear indicator' },
+        { id: 'msfs-brk', label: 'Brakes indicator' },
+        { id: 'msfs-wind', label: 'Wind indicator' },
+        { id: 'msfs-eng', label: 'Engine indicator' },
+    ];
+    const DEFAULT_SETTINGS = {
+        panels: Object.fromEntries(PANELS.map(p => [p.id, true])),
+        opacity: 1.0,
+        scale: 1.0,
+        bottomOffset: 10,
+        hideHotkey: 'h',
+        landingPopup: true,
+    };
+    let _settings = loadSettings();
+
+    function loadSettings() {
+        try {
+            const raw = localStorage.getItem(SETTINGS_KEY);
+            if (!raw) return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+            const parsed = JSON.parse(raw);
+            return {
+                panels: { ...DEFAULT_SETTINGS.panels, ...(parsed.panels || {}) },
+                opacity: typeof parsed.opacity === 'number' ? parsed.opacity : DEFAULT_SETTINGS.opacity,
+                scale: typeof parsed.scale === 'number' ? parsed.scale : DEFAULT_SETTINGS.scale,
+                bottomOffset: typeof parsed.bottomOffset === 'number' ? parsed.bottomOffset : DEFAULT_SETTINGS.bottomOffset,
+                hideHotkey: parsed.hideHotkey || DEFAULT_SETTINGS.hideHotkey,
+                landingPopup: parsed.landingPopup !== false,
+            };
+        } catch (e) {
+            return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+        }
+    }
+    function saveSettings() {
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(_settings)); } catch (e) { }
+    }
+    const PANEL_ORIGINS = {
+        'msfs-hdg': 'top center',
+        'msfs-spd': 'bottom left',
+        'msfs-thr': 'bottom left',
+        'msfs-flaps': 'bottom left',
+        'msfs-spl': 'bottom left',
+        'msfs-eng': 'bottom left',
+        'msfs-alt': 'bottom right',
+        'msfs-gear': 'bottom right',
+        'msfs-brk': 'bottom right',
+        'msfs-wind': 'bottom right',
+    };
+    function applySettings() {
+        const root = document.getElementById('msfs-ui-root');
+        if (root) {
+            root.style.opacity = String(_settings.opacity);
+            root.style.setProperty('--bonsai-bottom', (_settings.bottomOffset || 0) + 'px');
+        }
+        const sc = _settings.scale || 1;
+        for (const p of PANELS) {
+            const el = document.getElementById(p.id);
+            if (!el) continue;
+            el.style.display = _settings.panels[p.id] ? '' : 'none';
+            el.style.transformOrigin = PANEL_ORIGINS[p.id] || 'top left';
+            const baseTransform = (p.id === 'msfs-hdg') ? 'translateX(-50%)' : '';
+            const scaleTransform = (sc === 1) ? '' : `scale(${sc})`;
+            el.style.transform = [baseTransform, scaleTransform].filter(Boolean).join(' ');
+        }
+        const popup = document.getElementById('bonsai-landing-popup');
+        if (popup && !_settings.landingPopup) {
+            popup.classList.remove('show');
+        }
+    }
+
+    function buildSettingsPanel() {
+        if (document.getElementById('bonsai-settings')) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'bonsai-settings-btn';
+        btn.textContent = '⚙';
+        btn.title = 'Bonsai UI settings';
+        document.body.appendChild(btn);
+
+        const panel = document.createElement('div');
+        panel.id = 'bonsai-settings';
+        panel.innerHTML = `
+            <h3>BONSAI UI</h3>
+            <h4>ELEMENTS</h4>
+            ${PANELS.map(p => `
+                <div class="row">
+                    <label for="bs-${p.id}">${p.label}</label>
+                    <input type="checkbox" id="bs-${p.id}" data-panel="${p.id}">
+                </div>
+            `).join('')}
+            <div class="row">
+                <label for="bs-landing">Landing FPM popup</label>
+                <input type="checkbox" id="bs-landing">
+            </div>
+            <h4>OPACITY</h4>
+            <div class="row">
+                <input type="range" id="bs-opacity" min="0.1" max="1" step="0.05">
+                <span id="bs-opacity-val">100%</span>
+            </div>
+            <h4>SIZE</h4>
+            <div class="row">
+                <input type="range" id="bs-scale" min="0.5" max="2" step="0.05">
+                <span id="bs-scale-val">100%</span>
+            </div>
+            <h4>BOTTOM OFFSET</h4>
+            <div class="row">
+                <input type="range" id="bs-bottom" min="0" max="200" step="2">
+                <span id="bs-bottom-val">10px</span>
+            </div>
+            <div class="hint">Lift HUD above GeoFS bottom bar.</div>
+            <h4>HIDE HOTKEY</h4>
+            <div class="row">
+                <label for="bs-hotkey">Toggle HUD key</label>
+                <input type="text" id="bs-hotkey" maxlength="12" readonly>
+            </div>
+            <div class="hint">Click box, then press a key.</div>
+            <button class="reset" id="bs-reset">RESET TO DEFAULTS</button>
+        `;
+        document.body.appendChild(panel);
+
+        btn.addEventListener('click', () => {
+            panel.classList.toggle('show');
+            btn.blur();
+        });
+
+        for (const p of PANELS) {
+            const cb = panel.querySelector(`#bs-${p.id}`);
+            cb.checked = !!_settings.panels[p.id];
+            cb.addEventListener('change', () => {
+                _settings.panels[p.id] = cb.checked;
+                saveSettings(); applySettings();
+            });
+        }
+
+        const landing = panel.querySelector('#bs-landing');
+        landing.checked = !!_settings.landingPopup;
+        landing.addEventListener('change', () => {
+            _settings.landingPopup = landing.checked;
+            saveSettings(); applySettings();
+        });
+
+        const op = panel.querySelector('#bs-opacity');
+        const opVal = panel.querySelector('#bs-opacity-val');
+        op.value = _settings.opacity;
+        opVal.textContent = Math.round(_settings.opacity * 100) + '%';
+        op.addEventListener('input', () => {
+            _settings.opacity = parseFloat(op.value);
+            opVal.textContent = Math.round(_settings.opacity * 100) + '%';
+            saveSettings(); applySettings();
+        });
+
+        const sc = panel.querySelector('#bs-scale');
+        const scVal = panel.querySelector('#bs-scale-val');
+        sc.value = _settings.scale;
+        scVal.textContent = Math.round(_settings.scale * 100) + '%';
+        sc.addEventListener('input', () => {
+            _settings.scale = parseFloat(sc.value);
+            scVal.textContent = Math.round(_settings.scale * 100) + '%';
+            saveSettings(); applySettings();
+        });
+
+        const bo = panel.querySelector('#bs-bottom');
+        const boVal = panel.querySelector('#bs-bottom-val');
+        bo.value = _settings.bottomOffset;
+        boVal.textContent = _settings.bottomOffset + 'px';
+        bo.addEventListener('input', () => {
+            _settings.bottomOffset = parseInt(bo.value, 10);
+            boVal.textContent = _settings.bottomOffset + 'px';
+            saveSettings(); applySettings();
+        });
+
+        const hk = panel.querySelector('#bs-hotkey');
+        hk.value = _settings.hideHotkey.toUpperCase();
+        hk.addEventListener('focus', () => { hk.value = '...'; });
+        hk.addEventListener('blur', () => { hk.value = _settings.hideHotkey.toUpperCase(); });
+        hk.addEventListener('keydown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.key === 'Escape' || e.key === 'Tab') { hk.blur(); return; }
+            const k = e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase();
+            _settings.hideHotkey = k;
+            hk.value = k.toUpperCase();
+            saveSettings();
+            hk.blur();
+        });
+
+        panel.querySelector('#bs-reset').addEventListener('click', () => {
+            _settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+            saveSettings();
+            panel.remove();
+            btn.remove();
+            buildSettingsPanel();
+            applySettings();
+        });
+    }
+
+    function wireHideHotkey() {
+        window.addEventListener('keydown', (e) => {
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
+            if (e.ctrlKey || e.altKey || e.metaKey) return;
+            const k = (e.key || '').toLowerCase();
+            if (k === _settings.hideHotkey) {
+                document.body.classList.toggle('msfs-hidden');
+            }
+        }, true);
     }
 
     function init() {
@@ -599,7 +1121,8 @@
         root.innerHTML = `
             <div class="panel" id="msfs-hdg">
                 <div class="hdg-readout"><span id="v-hdg">000</span>°</div>
-                <canvas id="c-hdg" width="170" height="170"></canvas>
+                <div class="hdg-cursor"></div>
+                <canvas id="c-hdg" width="420" height="36"></canvas>
             </div>
 
             <div class="panel" id="msfs-spd">
@@ -633,10 +1156,33 @@
                 <div class="center" id="v-alt">0</div>
                 <div class="bot-label">FT</div>
             </div>
+
+            <div class="panel" id="msfs-brk">
+                <div class="lbl">BRAKES</div>
+                <div class="val off" id="v-brk">OFF</div>
+            </div>
+
+            <div class="panel" id="msfs-wind">
+                <div class="lbl">WIND</div>
+                <div class="val" id="v-wind">0 KTS</div>
+            </div>
+
+            <div class="panel" id="msfs-gear">
+                <div class="lbl">GEAR</div>
+                <div class="val off" id="v-gear">UP</div>
+            </div>
+
+            <div class="panel" id="msfs-eng">
+                <div class="lbl">ENGINE</div>
+                <div class="val off" id="v-eng">OFF</div>
+            </div>
         `;
         document.body.appendChild(root);
 
         wireMenuWatcher();
+        buildSettingsPanel();
+        wireHideHotkey();
+        applySettings();
 
         requestAnimationFrame(loop);
     }
@@ -670,52 +1216,44 @@
     }
 
     function drawCompass(ctx, hdg) {
-        const W = 170, H = 170, cx = W / 2, cy = H / 2, r = 72;
+        const canvas = ctx.canvas;
+        const W = canvas.width, H = canvas.height;
         ctx.clearRect(0, 0, W, H);
-        ctx.save();
-        ctx.translate(cx, cy);
 
-        ctx.fillStyle = 'rgba(10,15,25,0.55)';
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+        const PX_PER_DEG = 3;
+        const cx = W / 2;
+        const startDeg = ((hdg - (W / 2) / PX_PER_DEG) % 360 + 360) % 360;
+        const visibleDeg = W / PX_PER_DEG;
 
-        ctx.rotate(-hdg * Math.PI / 180);
         ctx.strokeStyle = '#fff';
         ctx.fillStyle = '#fff';
-        ctx.font = '11px Consolas, monospace';
+        ctx.font = 'bold 11px Consolas, monospace';
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.textBaseline = 'top';
 
-        for (let deg = 0; deg < 360; deg += 10) {
+        const firstTick = Math.ceil(startDeg / 5) * 5;
+        for (let d = firstTick; d <= startDeg + visibleDeg + 5; d += 5) {
+            const deg = ((d % 360) + 360) % 360;
+            const x = (d - startDeg) * PX_PER_DEG;
             const isMajor = deg % 30 === 0;
-            ctx.save();
-            ctx.rotate(deg * Math.PI / 180);
+            const isMid = deg % 10 === 0;
+
             ctx.lineWidth = isMajor ? 2 : 1;
             ctx.beginPath();
-            ctx.moveTo(0, -r);
-            ctx.lineTo(0, -r + (isMajor ? 10 : 5));
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, isMajor ? 10 : (isMid ? 7 : 4));
             ctx.stroke();
+
             if (isMajor) {
-                ctx.translate(0, -r + 22);
-                ctx.rotate(hdg * Math.PI / 180);
                 let label;
                 if (deg === 0) label = 'N';
                 else if (deg === 90) label = 'E';
                 else if (deg === 180) label = 'S';
                 else if (deg === 270) label = 'W';
-                else label = String(deg / 10);
-                ctx.fillText(label, 0, 0);
+                else label = String(deg / 10).padStart(2, '0');
+                ctx.fillText(label, x, 12);
             }
-            ctx.restore();
         }
-        ctx.restore();
-
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - r - 2);
-        ctx.lineTo(cx - 6, cy - r - 12);
-        ctx.lineTo(cx + 6, cy - r - 12);
-        ctx.closePath();
-        ctx.fill();
     }
 
     function readState() {
@@ -725,13 +1263,20 @@
         if (!av) return null;
 
         let thr = 0;
+        let rawThr = null;
         const ctrls = g.controls?.controls;
-        if (ctrls && typeof ctrls.throttle === 'number') thr = ctrls.throttle;
-        else if (typeof av.throttle === 'number') thr = av.throttle;
+        if (ctrls && typeof ctrls.throttle === 'number') rawThr = ctrls.throttle;
+        else if (typeof av.throttle === 'number') rawThr = av.throttle;
         else if (g.aircraft?.instance?.engine?.[0]?.throttle != null)
-            thr = g.aircraft.instance.engine[0].throttle;
-        if (thr < 0) thr = 0;
+            rawThr = g.aircraft.instance.engine[0].throttle;
+        const reverse = (typeof rawThr === 'number' && rawThr < 0)
+            || !!av.reverse
+            || !!av.thrustReverse
+            || !!(g.aircraft?.instance?.engine?.[0]?.reverse)
+            || !!(ctrls && ctrls.reverseThrust);
+        thr = (typeof rawThr === 'number') ? Math.abs(rawThr) : 0;
         if (thr > 1) thr = thr / 100;
+        if (thr > 1) thr = 1;
 
         let spl = 0;
         if (ctrls && typeof ctrls.airbrakes === 'number') spl = ctrls.airbrakes;
@@ -741,13 +1286,111 @@
         if (spl < 0) spl = 0;
         if (spl > 1) spl = spl / 100;
 
+        let gearDown = true;
+        if (typeof av.gearPosition === 'number') gearDown = av.gearPosition < 0.5;
+        else if (typeof av.landingGearPosition === 'number') gearDown = av.landingGearPosition < 0.5;
+        else if (ctrls && typeof ctrls.gear === 'boolean') gearDown = !ctrls.gear;
+        else if (ctrls && typeof ctrls.gear === 'number') gearDown = ctrls.gear < 0.5;
+
+        let brakesOn = false;
+        if (ctrls && typeof ctrls.brakes === 'boolean') brakesOn = ctrls.brakes;
+        else if (ctrls && typeof ctrls.brakes === 'number') brakesOn = ctrls.brakes > 0.05;
+        else if (ctrls && typeof ctrls.parkingBrake === 'boolean') brakesOn = ctrls.parkingBrake;
+        else if (typeof av.brakesPosition === 'number') brakesOn = av.brakesPosition > 0.05;
+        else if (typeof av.parkingBrake === 'boolean') brakesOn = av.parkingBrake;
+
+        let flapPct = 0;
+        let flapStage = 0;
+        let flapMax = 0;
+        try {
+            const overlays = document.querySelectorAll('.flaps-overlay .control-pad-dyn-label, .geofs-flaps-overlay .control-pad-dyn-label');
+            for (const ov of overlays) {
+                const m = (ov.textContent || '').match(/(\d+)\s*\/\s*(\d+)/);
+                if (m) {
+                    flapStage = parseInt(m[1], 10);
+                    flapMax = parseInt(m[2], 10);
+                    break;
+                }
+            }
+            if (!flapMax && ctrls && typeof ctrls.flaps === 'number') flapStage = ctrls.flaps;
+            if (typeof av.flapsPosition === 'number') {
+                let raw = av.flapsPosition;
+                if (raw > 1) raw = raw / 90;
+                flapPct = Math.max(0, Math.min(1, raw));
+            }
+            if ((!flapPct || flapPct < 0.001) && flapMax > 0 && flapStage > 0) {
+                flapPct = flapStage / flapMax;
+            }
+        } catch (e) { }
+
+        let engineOn = false;
+        try {
+            const inst = g.aircraft && g.aircraft.instance;
+            if (inst) {
+                if (typeof inst.engineOn === 'boolean') engineOn = inst.engineOn;
+                else if (typeof inst.engineRunning === 'boolean') engineOn = inst.engineRunning;
+                if (!engineOn && Array.isArray(inst.engines)) {
+                    engineOn = inst.engines.some(e => e && (e.running || e.on || e.started || (typeof e.rpm === 'number' && e.rpm > 0.05)));
+                }
+                if (!engineOn && Array.isArray(inst.engine)) {
+                    engineOn = inst.engine.some(e => e && (e.running || e.on || e.started || (typeof e.rpm === 'number' && e.rpm > 0.05)));
+                }
+            }
+            if (!engineOn) {
+                if (typeof av.engineOn === 'boolean') engineOn = av.engineOn;
+                else if (typeof av.engineRunning === 'boolean') engineOn = av.engineRunning;
+                else if (typeof av.engine1Running === 'boolean') engineOn = av.engine1Running;
+                else if (typeof av.engineRPM === 'number') engineOn = av.engineRPM > 0.05;
+                else if (typeof av.engine1RPM === 'number') engineOn = av.engine1RPM > 0.05;
+                else if (typeof av.engineN1 === 'number') engineOn = av.engineN1 > 1;
+            }
+            if (!engineOn) {
+                const overlay = document.querySelector('.geofs-engineToggleOverlay, .engineToggleOverlay, .control-pad.engine-overlay');
+                if (overlay) {
+                    const txt = (overlay.textContent || '').toUpperCase();
+                    if (/\bON\b/.test(txt) && !/\bOFF\b/.test(txt)) engineOn = true;
+                    if (overlay.classList.contains('engine-on') || overlay.classList.contains('on')) engineOn = true;
+                }
+            }
+        } catch (e) { }
+
+        let windSpeed = g?.weather?.windSpeed ?? av?.windSpeed ?? 0;
+        try {
+            const windStickers = document.querySelectorAll('.control-pad-sticker');
+            for (const st of windStickers) {
+                const txt = st.textContent || '';
+                if (txt.includes('kts')) {
+                    const parsed = parseInt(txt, 10);
+                    if (!isNaN(parsed)) windSpeed = parsed;
+                    st.style.display = 'none';
+                }
+            }
+            const windLabels = document.querySelectorAll('.control-pad-label');
+            for (const lbl of windLabels) {
+                if ((lbl.textContent || '').toLowerCase().includes('wind')) {
+                    lbl.style.display = 'none';
+                }
+            }
+            const windPointers = document.querySelectorAll('.geofs-overlay[style*="wind/pointer"], .geofs-overlay[style*="wind/plane"]');
+            for (const p of windPointers) {
+                p.style.display = 'none';
+            }
+        } catch (e) { }
+
         return {
             ias: av.kias ?? av.ias ?? 0,
             alt: av.altitude ?? av.altitude1 ?? 0,
             hdg: ((av.heading360 ?? av.heading ?? 0) + 360) % 360,
-            flaps: av.flapsPosition ?? av.flaps ?? 0,
+            flaps: flapPct,
+            flapStage,
+            flapMax,
             throttle: thr,
+            reverse,
             spoilers: spl,
+            gearDown,
+            brakesOn,
+            engineOn,
+            windSpeed: windSpeed,
         };
     }
 
@@ -779,7 +1422,11 @@
             if (flapsKnob) {
                 const pct = Math.max(0, Math.min(1, s.flaps));
                 flapsKnob.style.top = `calc(${pct * 100}% - 2px)`;
-                if (flapsPct) flapsPct.textContent = Math.round(pct * 100) + '%';
+                if (flapsPct) {
+                    flapsPct.textContent = (s.flapMax > 0)
+                        ? `${s.flapStage}/${s.flapMax}`
+                        : Math.round(pct * 100) + '%';
+                }
             }
 
             const thrFill = document.getElementById('v-thr-fill');
@@ -788,6 +1435,31 @@
                 const pct = Math.max(0, Math.min(1, s.throttle));
                 thrFill.style.height = (pct * 100) + '%';
                 if (thrPct) thrPct.textContent = Math.round(pct * 100) + '%';
+            }
+            const thrPanel = document.getElementById('msfs-thr');
+            if (thrPanel) thrPanel.classList.toggle('reverse', !!s.reverse);
+
+            const vGear = document.getElementById('v-gear');
+            if (vGear) {
+                vGear.textContent = s.gearDown ? 'DOWN' : 'UP';
+                vGear.classList.toggle('on', !!s.gearDown);
+                vGear.classList.toggle('off', !s.gearDown);
+            }
+            const vBrk = document.getElementById('v-brk');
+            if (vBrk) {
+                vBrk.textContent = s.brakesOn ? 'ON' : 'OFF';
+                vBrk.classList.toggle('on', !!s.brakesOn);
+                vBrk.classList.toggle('off', !s.brakesOn);
+            }
+            const vWind = document.getElementById('v-wind');
+            if (vWind) {
+                vWind.textContent = Math.round(s.windSpeed) + ' KTS';
+            }
+            const vEng = document.getElementById('v-eng');
+            if (vEng) {
+                vEng.textContent = s.engineOn ? 'ON' : 'OFF';
+                vEng.classList.toggle('on', !!s.engineOn);
+                vEng.classList.toggle('off', !s.engineOn);
             }
 
             const splKnob = document.getElementById('v-spl');
@@ -842,40 +1514,90 @@
 
     function enableMapNavLayers() {
         const tryEnable = (attempt = 0) => {
-            const g = window.geofs;
-            const map = g && g.map;
-            if (!map) {
-                if (attempt < 60) setTimeout(() => tryEnable(attempt + 1), 1000);
-                return;
-            }
             try {
-                if (typeof map.toggleAirports === 'function') map.airportsVisible !== true && map.toggleAirports(true);
-                else if (typeof map.showAirports === 'function') map.showAirports(true);
-                else if (map.airports && typeof map.airports.show === 'function') map.airports.show();
+                document.querySelectorAll('input[data-gespref]').forEach(inp => {
+                    const pref = inp.getAttribute('data-gespref') || '';
+                    if (/recenterMap|drawFlightPath|showRunways|showAirports|showNavaids|showWaypoints|showPlanes|showFlightPath/i.test(pref)) {
+                        if (!inp.checked) {
+                            inp.click();
+                        }
+                    }
+                });
 
-                if (typeof map.toggleRunways === 'function') map.runwaysVisible !== true && map.toggleRunways(true);
-                else if (typeof map.showRunways === 'function') map.showRunways(true);
-
-                if (typeof map.toggleNavaids === 'function') map.navaidsVisible !== true && map.toggleNavaids(true);
-                else if (typeof map.showNavaids === 'function') map.showNavaids(true);
-                else if (map.navaids && typeof map.navaids.show === 'function') map.navaids.show();
-
-                if (typeof map.toggleWaypoints === 'function') map.waypointsVisible !== true && map.toggleWaypoints(true);
-                else if (typeof map.showWaypoints === 'function') map.showWaypoints(true);
-
-                if (map.options) {
-                    map.options.showAirports = true;
-                    map.options.showRunways = true;
-                    map.options.showNavaids = true;
-                    map.options.showWaypoints = true;
+                const g = window.geofs;
+                if (g) {
+                    if (g.preferences && g.preferences.interface) {
+                        g.preferences.interface.recenterMap = true;
+                        g.preferences.interface.drawFlightPath = true;
+                    }
+                    if (typeof g.savePreferences === 'function') {
+                        try { g.savePreferences(); } catch (e) { }
+                    }
+                    if (g.flight && g.flight.recorder && typeof g.flight.recorder.setPathDrawState === 'function') {
+                        try { g.flight.recorder.setPathDrawState(); } catch (e) { }
+                    }
                 }
-                if (typeof map.update === 'function') map.update();
-                if (typeof map.refresh === 'function') map.refresh();
-            } catch (e) {
-                if (attempt < 60) setTimeout(() => tryEnable(attempt + 1), 1000);
-            }
+            } catch (e) { }
+
+            if (attempt < 30) setTimeout(() => tryEnable(attempt + 1), 3000);
         };
-        setTimeout(() => tryEnable(), 6000);
+        setTimeout(() => tryEnable(), 4000);
+    }
+
+    function ensureLandingPopup() {
+        let el = document.getElementById('bonsai-landing-popup');
+        if (el) return el;
+        el = document.createElement('div');
+        el.id = 'bonsai-landing-popup';
+        document.body.appendChild(el);
+        return el;
+    }
+
+    function gradeFromFpm(fpm) {
+        if (fpm <= -1000 || fpm > 200) return { label: 'CRASH', cls: 'crash' };
+        if (fpm >= -50) return { label: 'BUTTER', cls: 'butter' };
+        if (fpm >= -200) return { label: 'GREAT', cls: 'great' };
+        if (fpm >= -500) return { label: 'ACCEPTABLE', cls: 'acceptable' };
+        return { label: 'HARD LANDING', cls: 'hard' };
+    }
+
+    let _bonsaiPrevGround = true;
+    let _bonsaiPrevVS = 0;
+    let _bonsaiPopupTimer = null;
+
+    function showLandingPopup(fpm) {
+        if (!_settings.landingPopup) return;
+        const popup = ensureLandingPopup();
+        const g = gradeFromFpm(fpm);
+        popup.innerHTML = `
+            <div class="bl-title">Touchdown</div>
+            <div class="bl-fpm">${Math.round(fpm)}</div>
+            <div class="bl-fpm-unit">FPM</div>
+            <div class="bl-grade ${g.cls}">${g.label}</div>
+        `;
+        requestAnimationFrame(() => popup.classList.add('show'));
+        if (_bonsaiPopupTimer) clearTimeout(_bonsaiPopupTimer);
+        _bonsaiPopupTimer = setTimeout(() => {
+            popup.classList.remove('show');
+        }, 10000);
+    }
+
+    function watchLanding() {
+        setInterval(() => {
+            const g = window.geofs;
+            if (!g || !g.animation || !g.animation.values) return;
+            const av = g.animation.values;
+            const grounded = !!av.groundContact;
+            const vs = av.verticalSpeed;
+            if (grounded && !_bonsaiPrevGround) {
+                const touchdownFpm = (typeof _bonsaiPrevVS === 'number' && _bonsaiPrevVS !== 0)
+                    ? _bonsaiPrevVS
+                    : (typeof vs === 'number' ? vs : 0);
+                showLandingPopup(touchdownFpm);
+            }
+            if (!grounded && typeof vs === 'number') _bonsaiPrevVS = vs;
+            _bonsaiPrevGround = grounded;
+        }, 60);
     }
 
     function boot() {
@@ -883,6 +1605,8 @@
         init();
         autoCycleVisibility();
         enableMapNavLayers();
+        ensureLandingPopup();
+        watchLanding();
     }
 
     if (document.body) boot();
