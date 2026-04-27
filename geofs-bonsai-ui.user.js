@@ -716,11 +716,25 @@
         z-index: 2147483600 !important;
     }
 
-    body.msfs-menu-open #msfs-ui-root {
-        opacity: 0;
-        pointer-events: none;
+    body.msfs-menu-open #msfs-spd,
+    body.msfs-menu-open #msfs-thr,
+    body.msfs-menu-open #msfs-flaps,
+    body.msfs-menu-open #msfs-spl,
+    body.msfs-menu-open #msfs-eng,
+    body.msfs-menu-open .geofs-autopilot-pad,
+    body.msfs-menu-open .geofs-radio-pad,
+    body.msfs-menu-open .geofs-autopilot-controls,
+    body.msfs-menu-open .geofs-radio-controls,
+    body.msfs-menu-open .geofs-radio,
+    body.msfs-menu-open .geofs-radio-list {
+        opacity: 0 !important;
+        pointer-events: none !important;
     }
-    #msfs-ui-root { transition: opacity 0.2s ease; }
+    #msfs-spd, #msfs-thr, #msfs-flaps, #msfs-spl, #msfs-eng,
+    .geofs-autopilot-pad, .geofs-radio-pad, .geofs-autopilot-controls,
+    .geofs-radio-controls, .geofs-radio, .geofs-radio-list {
+        transition: opacity 0.2s ease, background 0.15s, border-color 0.15s !important;
+    }
 
     #bonsai-landing-popup {
         position: fixed;
@@ -1197,6 +1211,10 @@
             '.geofs-player-list',
             '.livery-list',
             '.geofs-debug',
+            '.geofs-settings',
+            '.geofs-options',
+            '.geofs-ui-left.is-visible',
+            '.mdl-menu__container.is-visible'
         ];
         const isMenuOpen = () => {
             for (const sel of MENU_SELECTORS) {
@@ -1604,6 +1622,7 @@
         unhideMistakes();
         init();
         autoCycleVisibility();
+        wireMenuWatcher();
         enableMapNavLayers();
         ensureLandingPopup();
         watchLanding();
