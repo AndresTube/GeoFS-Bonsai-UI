@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         GeoFS MSFS-Style UI
+// @name         GeoFS Bonsai UI
 // @namespace    http://tampermonkey.net/
 // @version      1.0.0
-// @description  MSFS-style HUD for GeoFS: HDG compass (TL), AIRSPEED+FLAPS+THROTTLE (BL), ALT (BR).
+// @description  MSFS-style HUD for GeoFS: Monochromatic style, Compass minimap (TL), AIRSPEED+FLAPS+THROTTLE+SPOILERS (BL), ALT (BR).
 // @author       Fendrixx
 // @match        https://www.geo-fs.com/geofs.php*
 // @match        https://*.geo-fs.com/geofs.php*
